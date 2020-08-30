@@ -33,81 +33,82 @@ const server = app.listen(port, () => {
 const io = SocketIO(server);
 
 //websockets
-io.on('connection',async (socket) => {
+io.on('connection', async (socket) => {
   console.log('new connection', socket.id);
-  await idsSockets.push(socket.id);
+        idsSockets.push(socket.id);
+  await socket.on('hour:client', async (data) => {
 
-  await socket.on('hour:client',async (data) => {
+    console.log(data);
+    if (io.engine.clientsCount == 2) {
+      if (data.id_socket == idsSockets[0]) {
+        tiempos.push(data.timeClient);
+      } else if (data.id_socket == idsSockets[1]) {
+        tiempos.push(data.timeClient);
+      }
+    }
+
     
-    //console.log(data);
-     if (io.engine.clientsCount == 2){
-      if(data.id_socket == idsSockets[0]){
-          tiempos.push(data.timeClient);
-       }else if(data.id_socket == idsSockets[1]){
-          tiempos.push(data.timeClient);
-       }
-
-       
-       let promedio =  ((tiempos[0]+tiempos[1]+tiempos[2])/3);
-       console.log('timepo 0: ' + tiempos[0]);
-       console.log('timepo 1: ' + tiempos[1]);
-       console.log('timepo 2: ' + tiempos[2]);
-       console.log('promedio: '+ promedio);
-
-       tiempos.forEach(element => {
-         console.log(element);
-       });
+    if (tiempos.length == 3) {
+      let promedio = Math.trunc((tiempos[0] + tiempos[1] + tiempos[2]) / 3);
+      console.log('timepo 0: ' + tiempos[0]);
+      console.log('timepo 1: ' + tiempos[1]);
+      console.log('timepo 2: ' + tiempos[2]);
+      console.log('promedio: ' + promedio);
       
+      tiempos = [];
     }
 
 
+    if (data.id_socket == idsSockets[0]) {
+      socket.emit('res:time', {
+        offset: '1'
+      });
+    }
+    
+    if (data.id_socket == idsSockets[1]) {
+      socket.emit('res:time', {
+        offset: '2'
+      });
+    }
 
-   if(data.id_socket == idsSockets[0]){
-    socket.emit('res:time', {
-      offset: 'cliente 1'
-    });
-   }else if(data.id_socket == idsSockets[1]){
-    socket.emit('res:time', {
-      offset: 'cliente 2'
-    });
-   }
-  
   });
 });
 
-function getTimeApi() {
-  axios.get('http://worldtimeapi.org/api/timezone/America/Bogota').then((response) => {
+async function getTimeApi() {
+  await axios.get('http://worldtimeapi.org/api/timezone/America/Bogota').then(async (response) => {
     const timeApi = response.data.unixtime;
     dateObj = new Date(timeApi * 1000);
     // Get hours from the timestamp 
     hours = (dateObj.getUTCHours() - 5);
-    if(hours < 0){
-      hours = 24 + hours; 
+    if (hours < 0) {
+      hours = 24 + hours;
     }
     // Get minutes part from the timestamp 
     minutes = dateObj.getUTCMinutes();
     // Get seconds part from the timestamp 
     seconds = dateObj.getUTCSeconds();
     let auxSecond = 0;
-    auxSecond += hours*3600;
-    auxSecond+= minutes*60;
-    auxSecond+= seconds;
-    tiempos.push(auxSecond);
+    auxSecond += hours * 3600;
+    auxSecond += minutes * 60;
+    auxSecond += seconds;
+    await tiempos.push(auxSecond);
   }).catch((error) => {
     console.log(error);
   });
 }
 
 //llamado de la hora a cada cierto tiempo
-setInterval(function () {
-  io.emit('req:time');
-  tiempos = [];
-  getTimeApi();
-  let promedio =  ((tiempos[0]+tiempos[1]+tiempos[2])/3);
-       console.log('timepo 0: ' + tiempos[0]);
-       console.log('timepo 1: ' + tiempos[1]);
-       console.log('timepo 2: ' + tiempos[2]);
-       console.log('promedio: '+ promedio);
+setInterval(async function () {
+  await getTimeApi();
+  await io.emit('req:time');
+  tiempos.forEach(element => {
+    console.log('arrtemp: ' + element);
+  });
+
+  /*
+  offset.forEach(element => {
+    console.log('arroffset: ' + element);
+  });*/
 }, 5000);
 
 
