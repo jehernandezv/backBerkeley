@@ -11,6 +11,7 @@ const port = process.argv[2];
 var tiempos = [];
 var idsSockets = [];
 var offset = [];
+var coordinador;
 
 //middleware
 app.use(morgan('dev'));
@@ -31,40 +32,66 @@ const server = app.listen(port, () => {
 });
 
 const io = SocketIO(server);
-
 //websockets
-io.on('connection', async (socket) => {
-  console.log('new connection', socket.id);
+io.on('connection', (socket) => {
+  console.log('New connection', socket.id);
   idsSockets.push(socket.id);
-  await socket.on('hour:client', async (data) => {
-
+  socket.on('hour:client', (data) => {
+    console.log(data);
+    if (data.id_socket == idsSockets[0]) {
+      coordinador = tiempos[0];
+      tiempos.push(data.timeClient);
+      console.log('emit 1: ' + coordinador - tiempos[1] + ' ID ' + idsSockets[0]);
+      socket.emit('res:time', {
+        offset: coordinador - tiempos[1]
+      });
+    } else if (data.id_socket == idsSockets[1]) {
+      coordinador = tiempos[0];
+      tiempos.push(data.timeClient);
+      console.log('emit 2: ' + coordinador - tiempos[1] + ' ID ' + idsSockets[1]);
+      socket.emit('res:time', {
+        offset: coordinador - tiempos[1]
+      });
+    }
+    offset = [];
+    tiempos = [];
+  });
+});
+/*
+//websockets
+io.on('connection', (socket) => {
+  console.log('New connection', socket.id);
+  idsSockets.push(socket.id);
+  socket.on('hour:client', (data) => {
     console.log(data);
     if (io.engine.clientsCount == 2) {
+
       if (data.id_socket == idsSockets[0]) {
         tiempos.push(data.timeClient);
-      } else if (data.id_socket == idsSockets[1]) {
+      }
+      if (data.id_socket == idsSockets[1]) {
         tiempos.push(data.timeClient);
       }
 
       if (tiempos.length == 3) {
-        const coordinador = tiempos[0];
-        tiempos.forEach(element => {
-          offset.push(coordinador - element);
-        });
-        offset.forEach(element => {
-          console.log('offset: ' + element);
-        });
-        if (data.id_socket == idsSockets[0]) {
-          console.log('emit 1: ' + offset[1]);
-          socket.emit('res:time', {
-            offset: offset[1]
-          });
+        coordinador = tiempos[0];
+        for (let index = 1; index < tiempos.length; index++) {
+          offset.push(coordinador - tiempos[index],);
         }
-        if (data.id_socket == idsSockets[1]) {
-          console.log('emit 2: ' + offset[2]);
-          socket.emit('res:time', {
-            offset: offset[2]
-          });
+        for (let index = 0; index < offset.length; index++) {
+          console.log('offset: ' + index + ' : ' + offset[index]);
+        }
+        switch (true) {
+          case data.id_socket == idsSockets[0]:
+            console.log('emit 1: ' + offset[0]);
+            socket.emit('res:time', {
+              offset: offset[0]
+            }); break;
+          case data.id_socket == idsSockets[1]:
+            console.log('emit 2: ' + offset[1]);
+            socket.emit('res:time', {
+              offset: offset[1]
+            }); break;
         }
         tiempos = [];
         offset = [];
@@ -72,25 +99,22 @@ io.on('connection', async (socket) => {
     }
   });
 });
-
+*/
 async function getTimeApi() {
-  await axios.get('http://worldtimeapi.org/api/timezone/America/Bogota').then(async (response) => {
+  await axios.get('http://worldtimeapi.org/api/timezone/America/Bogota').then((response) => {
     const timeApi = response.data.unixtime;
     dateObj = new Date(timeApi * 1000);
-    // Get hours from the timestamp 
     hours = (dateObj.getUTCHours() - 5);
     if (hours < 0) {
       hours = 24 + hours;
     }
-    // Get minutes part from the timestamp 
     minutes = dateObj.getUTCMinutes();
-    // Get seconds part from the timestamp 
     seconds = dateObj.getUTCSeconds();
     let auxSecond = 0;
     auxSecond += hours * 3600;
     auxSecond += minutes * 60;
     auxSecond += seconds;
-    await tiempos.push(auxSecond);
+    tiempos.push(auxSecond);
   }).catch((error) => {
     console.log(error);
   });
