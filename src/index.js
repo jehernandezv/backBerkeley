@@ -35,7 +35,7 @@ const io = SocketIO(server);
 //websockets
 io.on('connection', async (socket) => {
   console.log('new connection', socket.id);
-        idsSockets.push(socket.id);
+  idsSockets.push(socket.id);
   await socket.on('hour:client', async (data) => {
 
     console.log(data);
@@ -46,44 +46,30 @@ io.on('connection', async (socket) => {
         tiempos.push(data.timeClient);
       }
 
-    
-    if (tiempos.length == 3) {
-     /* let promedio = Math.trunc((tiempos[0] + tiempos[1] + tiempos[2]) / 3);
-      console.log('timepo 0: ' + tiempos[0]);
-      console.log('timepo 1: ' + tiempos[1]);
-      console.log('timepo 2: ' + tiempos[2]);
-      console.log('promedio: ' + promedio);*/
-
-      const coordinador = tiempos[0];
-      
-      tiempos.forEach(element => {
-        offset.push(coordinador - element);
-      });
-
-      offset.forEach(element => {
-        console.log('offset: ' + element);
-      });
-
-      if (data.id_socket == idsSockets[0]) {
-        console.log('emit 1: '+ offset[1]);
-        await socket.emit('res:time', {
-          offset: offset[1]
+      if (tiempos.length == 3) {
+        const coordinador = tiempos[0];
+        tiempos.forEach(element => {
+          offset.push(coordinador - element);
         });
-      }
-      
-      if (data.id_socket == idsSockets[1]) {
-        console.log('emit 2: '+ offset[2]);
-        await socket.emit('res:time', {
-          offset: offset[2]
+        offset.forEach(element => {
+          console.log('offset: ' + element);
         });
+        if (data.id_socket == idsSockets[0]) {
+          console.log('emit 1: ' + offset[1]);
+          socket.emit('res:time', {
+            offset: offset[1]
+          });
+        }
+        if (data.id_socket == idsSockets[1]) {
+          console.log('emit 2: ' + offset[2]);
+          socket.emit('res:time', {
+            offset: offset[2]
+          });
+        }
+        tiempos = [];
+        offset = [];
       }
-      
-      tiempos = [];
-      offset = [];
     }
-
-  }
-
   });
 });
 
