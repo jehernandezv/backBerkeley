@@ -45,31 +45,44 @@ io.on('connection', async (socket) => {
       } else if (data.id_socket == idsSockets[1]) {
         tiempos.push(data.timeClient);
       }
-    }
 
     
     if (tiempos.length == 3) {
-      let promedio = Math.trunc((tiempos[0] + tiempos[1] + tiempos[2]) / 3);
+     /* let promedio = Math.trunc((tiempos[0] + tiempos[1] + tiempos[2]) / 3);
       console.log('timepo 0: ' + tiempos[0]);
       console.log('timepo 1: ' + tiempos[1]);
       console.log('timepo 2: ' + tiempos[2]);
-      console.log('promedio: ' + promedio);
+      console.log('promedio: ' + promedio);*/
+
+      const coordinador = tiempos[0];
+      
+      tiempos.forEach(element => {
+        offset.push(coordinador - element);
+      });
+
+      offset.forEach(element => {
+        console.log('offset: ' + element);
+      });
+
+      if (data.id_socket == idsSockets[0]) {
+        console.log('emit 1: '+ offset[1]);
+        await socket.emit('res:time', {
+          offset: offset[1]
+        });
+      }
+      
+      if (data.id_socket == idsSockets[1]) {
+        console.log('emit 2: '+ offset[2]);
+        await socket.emit('res:time', {
+          offset: offset[2]
+        });
+      }
       
       tiempos = [];
+      offset = [];
     }
 
-
-    if (data.id_socket == idsSockets[0]) {
-      socket.emit('res:time', {
-        offset: '1'
-      });
-    }
-    
-    if (data.id_socket == idsSockets[1]) {
-      socket.emit('res:time', {
-        offset: '2'
-      });
-    }
+  }
 
   });
 });
@@ -101,14 +114,6 @@ async function getTimeApi() {
 setInterval(async function () {
   await getTimeApi();
   await io.emit('req:time');
-  tiempos.forEach(element => {
-    console.log('arrtemp: ' + element);
-  });
-
-  /*
-  offset.forEach(element => {
-    console.log('arroffset: ' + element);
-  });*/
 }, 5000);
 
 
