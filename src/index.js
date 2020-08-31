@@ -10,8 +10,13 @@ const SocketIO = require('socket.io');
 const port = process.argv[2];
 var tiempos = [];
 var idsSockets = [];
-var offset = [];
 var coordinador;
+
+
+let conn = [];
+let time_api,total_time, average, ajuste, offset = 0;
+
+
 
 //middleware
 app.use(morgan('dev'));
@@ -35,28 +40,39 @@ const io = SocketIO(server);
 //websockets
 io.on('connection', (socket) => {
   console.log('New connection', socket.id);
-  idsSockets.push(socket.id);
   socket.on('hour:client', (data) => {
-    console.log(data);
-    if (data.id_socket == idsSockets[0]) {
-      coordinador = tiempos[0];
-      tiempos.push(data.timeClient);
-      console.log('emit 1: ' + coordinador - tiempos[1] + ' ID ' + idsSockets[0]);
+    conn.push({id:socket.id,time:data.timeClient});
+
+    if(conn.length === io.engine.clientsCount){
+      console.log(data);
+      berkeley();
+
       socket.emit('res:time', {
-        offset: coordinador - tiempos[1]
+        offset: data.timeClient + offset
       });
-    } else if (data.id_socket == idsSockets[1]) {
-      coordinador = tiempos[0];
-      tiempos.push(data.timeClient);
-      console.log('emit 2: ' + coordinador - tiempos[1] + ' ID ' + idsSockets[1]);
-      socket.emit('res:time', {
-        offset: coordinador - tiempos[1]
-      });
-    }
-    offset = [];
-    tiempos = [];
-  });
+      total_time =  0;
+      average = 0;
+      conn = [];
+      time_api = 0;
+      ajuste = 0;
+      offset = 0;
+     }
+ });
 });
+
+function berkeley(){
+  conn.forEach(element => {
+    let rest = time_api - element.time;
+    total_time += rest;
+  });
+
+  ajuste = total_time / conn.length;
+  offset = time_api + ajuste;
+  
+  console.log('ajuste: ' + ajuste);
+  console.log('total: ' + total_time);
+  console.log('api: ' + time_api);
+}
 /*
 //websockets
 io.on('connection', (socket) => {
@@ -114,7 +130,7 @@ async function getTimeApi() {
     auxSecond += hours * 3600;
     auxSecond += minutes * 60;
     auxSecond += seconds;
-    tiempos.push(auxSecond);
+    time_api = auxSecond;
   }).catch((error) => {
     console.log(error);
   });
