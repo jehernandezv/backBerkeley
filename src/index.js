@@ -50,7 +50,7 @@ function berkeleyAlgorithm() {
   });
   console.log('TIEMPO SUMA: ' + allDifferencesSum);
 
-  average_time = allDifferencesSum / (nodes.length);
+  average_time = allDifferencesSum / (nodes.length + 1);
   synchronized_time = time_api + average_time; 
   console.log('TIEMPO PRMEDIO: ' + average_time);
   console.log('TIEMPO DE SINCRONIZADO: ' + synchronized_time);
