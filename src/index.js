@@ -3,65 +3,59 @@ const io = require('socket.io');
 const axios = require('axios');
 const port = process.argv[2];
 
-// Socket.io Implementation
 const app = express();
 const server = app.listen(port, () => {
-  console.log('listening on port: ' + port);
+  console.log('Escuchando en el puerto: ' + port);
 });
 
 let socket = io(server);
 
-// App
+let list_node = [];
+let clients, time_sync;
+let time_api = 0;
+let time_sum, time_average = 0;
 
-let baseServerUrl = 'http://worldtimeapi.org/api/timezone/America/Bogota';
-let nodes = [];
-let clients, master_time, synchronized_time;
-let allDifferencesSum, average_time = 0;
-
-// Socket Listener
 socket.on('connection', node => {
-  console.log('Node connected:', node.id);
-  node.join('time room');
-  clients = socket.sockets.adapter.rooms['time room'];
+  console.log('Nueva conexión:', node.id);
+  node.join('timeReq');
+  clients = socket.sockets.adapter.rooms['timeReq'];
 
   node.on('hour:client', time => {
-    nodes.push({ id: node.id, time: time.timeClient });
-    if (nodes.length === clients.length) {
+    list_node.push({ id: node.id, time: time.timeClient });
+    if (list_node.length === clients.length) {
       berkeleyAlgorithm();
-      node.emit('res:time', { offset: synchronized_time });
-      node.broadcast.emit('res:time', { offset: synchronized_time });
+      node.emit('res:time', { offset: time_sync });
+      node.broadcast.emit('res:time', { offset: time_sync });
     }
   });
-
   node.on('disconnect', () => {
-    node.leave('time room', '');
-    deleteDisconnectedNode(node);
+    node.leave('timeReq', '');
+    deleteNode(node);
   });
 });
 
-let time_api = 0;
 function berkeleyAlgorithm() {
-  nodes.forEach(slave => {
+  list_node.forEach(slave => {
     let time_difference = time_api - slave.time;
     console.log('API_TIME: ' + time_api);
     console.log('TEST: ' + slave.time);
 
-    allDifferencesSum += time_difference;
+    time_sum += time_difference;
   });
-  console.log('TIEMPO SUMA: ' + allDifferencesSum);
+  console.log('TIEMPO SUMA: ' + time_sum);
 
-  average_time = allDifferencesSum / (nodes.length + 1);
-  synchronized_time = time_api + average_time; 
-  console.log('TIEMPO PRMEDIO: ' + average_time);
-  console.log('TIEMPO DE SINCRONIZADO: ' + synchronized_time);
+  time_average = time_sum / (list_node.length + 1);
+  time_sync = time_api + time_average; 
+  console.log('TIEMPO PRMEDIO: ' + time_average);
+  console.log('TIEMPO DE SINCRONIZADO: ' + time_sync);
 }
 
-function deleteDisconnectedNode(node) {
-  console.log('Node disconnected:', node.id);
-  let index = nodes.map(object => {
+function deleteNode(node) {
+  console.log('Se ha eliminado el nodo con id:', node.id);
+  let index = list_node.map(object => {
     return object.id;
   }).indexOf(node.id);
-  nodes.splice(index, 1);
+  list_node.splice(index, 1);
 }
 
 async function getTimeApi() {
@@ -82,14 +76,14 @@ async function getTimeApi() {
   });
 }
 
-function resetAlgorithmTime() {
-  nodes = [];
-  allDifferencesSum = 0;
-  average_time = 0;
+function reset() {
+  list_node = [];
+  time_sum = 0;
+  time_average = 0;
 }
 
 setInterval(async () => {
-  await resetAlgorithmTime();
+  await reset();
   await getTimeApi();
-  await socket.to('time room').emit('req:time');
+  await socket.to('timeReq').emit('req:time');
 }, 5000);
